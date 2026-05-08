@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>QuadTree - Grid Toggle & Performance</title>
+    <style>
+        body, canvas { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #111; }
+        #ui { position: absolute; top: 10px; left: 10px; z-index: 10; display: flex; gap: 10px; flex-wrap: wrap; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 8px; align-items: center;}
+        button { padding: 6px 10px; cursor: pointer; border: none; border-radius: 4px; background: #444; color: white; }
+        button:hover { background: #666; }
+        #stats { color: #00ff00; font-family: monospace; }
+        label { color: white; font-family: sans-serif; font-size: 14px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <button id="clear_btn">Clear</button>
+        <button id="random_btn">Add 10k</button>
+        <button id="random_btn2">Add 1M</button>
+        <label><input type="checkbox" id="show_grid" checked> Show Grid</label>
+        <div id="stats">Points: 0</div>
+    </div>
+    
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+        const stats = document.getElementById("stats");
+        const gridCheckbox = document.getElementById("show_grid");
+        
+        const offscreenCanvas = document.createElement("canvas");
+        const offCtx = offscreenCanvas.getContext("2d");
+
+        let points = [];
+        let qt = null;
+        let mouse = { x: -1000, y: -1000 };
+        const radius = 50;
+
+        const point = (x, y) => ({ x, y });
+        const boundary = (x, y, w, h) => ({
+            x, y, w, h,
+            left: x - w, right: x + w, top: y - h, bottom: y + h,
+            contains: function(p) {
+                return (p.x >= this.left && p.x <= this.right && p.y >= this.top && p.y <= this.bottom);
+            },
+            intersects: function(range) {
+                return !(range.left > this.right || range.right < this.left || range.top > this.bottom || range.bottom < this.top);
+            }
+        });
+
+        class Quadtree {
+            constructor(bound, capacity) {
+                this.boundary = bound;
+                this.capacity = capacity;
+                this.points = [];
+                this.divided = false;
+            }
+
+            subdivide() {
+                const { x, y, w, h } = this.boundary;
+                this.nw = new Quadtree(boundary(x - w/2, y - h/2, w/2, h/2), this.capacity);
+                this.ne = new Quadtree(boundary(x + w/2, y - h/2, w/2, h/2), this.capacity);
+                this.sw = new Quadtree(boundary(x - w/2, y + h/2, w/2, h/2), this.capacity);
+                this.se = new Quadtree(boundary(x + w/2, y + h/2, w/2, h/2), this.capacity);
+                this.divided = true;
+            }
+
+            insert(p) {
+                if (!this.boundary.contains(p)) return false;
+                if (this.points.length < this.capacity && !this.divided) {
+                    this.points.push(p);
+                    return true;
+                }
+                if (!this.divided) this.subdivide();
+                return (this.nw.insert(p) || this.ne.insert(p) || this.sw.insert(p) || this.se.insert(p));
+            }
+
+            query(range, found) {
+                if (!this.boundary.intersects(range)) return;
+                if (this.divided) {
+                    this.nw.query(range, found);
+                    this.ne.query(range, found);
+                    this.sw.query(range, found);
+                    this.se.query(range, found);
+                } else {
+                    for (let p of this.points) {
+                        if (range.contains(p)) found.push(p);
+                    }
+                }
+            }
+
+            // Recursive function to draw the blue boundaries
+            show(context) {
+                context.strokeStyle = 'rgba(0, 100, 255, 0.5)';
+                context.lineWidth = 0.5;
+                context.strokeRect(this.boundary.left, this.boundary.top, this.boundary.w * 2, this.boundary.h * 2);
+                if (this.divided) {
+                    this.nw.show(context);
+                    this.ne.show(context);
+                    this.sw.show(context);
+                    this.se.show(context);
+                }
+            }
+        }
+
+        function updateTree() {
+            offscreenCanvas.width = canvas.width;
+            offscreenCanvas.height = canvas.height;
+            const bound = boundary(canvas.width / 2, canvas.height / 2, canvas.width / 2, canvas.height / 2);
+            
+            // Note: If showing grid with 1M points, capacity 4 will crash the browser 
+            // because there are too many boxes to draw. We use 64 for 1M points.
+            const cap = points.length > 50000 ? 64 : 4;
+            qt = new Quadtree(bound, cap); 
+
+            offCtx.fillStyle = '#ff0000';
+            for (let p of points) {
+                qt.insert(p);
+                offCtx.fillRect(p.x, p.y, 1, 1);
+            }
+            
+            stats.innerText = `Points: ${points.length.toLocaleString()}`;
+            draw();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. Draw Grid (if checkbox is checked)
+            if (qt && gridCheckbox.checked) {
+                qt.show(ctx);
+            }
+
+            // 2. Draw Points from buffer
+            ctx.drawImage(offscreenCanvas, 0, 0);
+
+            // 3. Draw Selection
+            const range = boundary(mouse.x, mouse.y, radius, radius);
+            ctx.strokeStyle = "white";
+            ctx.strokeRect(range.left, range.top, range.w * 2, range.h * 2);
+
+            if (qt) {
+                const found = [];
+                qt.query(range, found);
+                ctx.fillStyle = "#00ff00";
+                for (let p of found) {
+                    ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+                }
+            }
+        }
+
+        // Listeners
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            updateTree();
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX; mouse.y = e.clientY;
+            draw();
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            points.push(point(e.clientX, e.clientY));
+            updateTree();
+        });
+
+        gridCheckbox.addEventListener('change', draw);
+
+        document.getElementById("clear_btn").addEventListener('click', () => {
+            points = []; updateTree();
+        });
+
+        document.getElementById("random_btn").addEventListener('click', () => {
+            for (let i = 0; i < 10000; i++) points.push(point(Math.random() * canvas.width, Math.random() * canvas.height));
+            updateTree();
+        });
+
+        document.getElementById("random_btn2").addEventListener('click', () => {
+            stats.innerText = "Building 1M Tree...";
+            setTimeout(() => {
+                for (let i = 0; i < 1000000; i++) points.push(point(Math.random() * canvas.width, Math.random() * canvas.height));
+                updateTree();
+            }, 10);
+        });
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        updateTree();
+    </script>
+</body>
+</html>
