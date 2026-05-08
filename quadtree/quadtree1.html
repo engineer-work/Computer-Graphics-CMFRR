@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>High Performance QuadTree - 1M Points</title>
+    <style>
+        body, canvas { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #111; }
+        #ui { position: absolute; top: 10px; left: 10px; z-index: 10; display: flex; gap: 10px; }
+        button { padding: 8px 12px; cursor: pointer; border: none; border-radius: 4px; background: #444; color: white; }
+        button:hover { background: #666; }
+        #stats { color: #00ff00; font-family: monospace; align-self: center; text-shadow: 1px 1px 2px black; }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <button id="clear_btn">Clear All</button>
+        <button id="random_btn">Add 1,000,000 Points</button>
+        <div id="stats">Points: 0</div>
+    </div>
+    
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+        const stats = document.getElementById("stats");
+        
+        // The "Secret Sauce" for performance: A background buffer
+        const offscreenCanvas = document.createElement("canvas");
+        const offCtx = offscreenCanvas.getContext("2d");
+
+        let points = [];
+        let qt = null;
+        let mouse = { x: -1000, y: -1000 };
+        const selectionRadius = 60;
+
+        class Point {
+            constructor(x, y) { this.x = x; this.y = y; }
+        }
+
+        class Boundary {
+            constructor(x, y, w, h) {
+                this.x = x; this.y = y; 
+                this.w = w; this.h = h; 
+                this.left = x - w;
+                this.right = x + w;
+                this.top = y - h;
+                this.bottom = y + h;
+            }
+            contains(p) {
+                return (p.x >= this.left && p.x <= this.right && p.y >= this.top && p.y <= this.bottom);
+            }
+            intersects(range) {
+                return !(range.left > this.right || range.right < this.left || range.top > this.bottom || range.bottom < this.top);
+            }
+        }
+
+        class Quadtree {
+            constructor(boundary, capacity) {
+                this.boundary = boundary;
+                this.capacity = capacity;
+                this.points = [];
+                this.divided = false;
+            }
+
+            subdivide() {
+                const { x, y, w, h } = this.boundary;
+                this.nw = new Quadtree(new Boundary(x - w/2, y - h/2, w/2, h/2), this.capacity);
+                this.ne = new Quadtree(new Boundary(x + w/2, y - h/2, w/2, h/2), this.capacity);
+                this.sw = new Quadtree(new Boundary(x - w/2, y + h/2, w/2, h/2), this.capacity);
+                this.se = new Quadtree(new Boundary(x + w/2, y + h/2, w/2, h/2), this.capacity);
+                this.divided = true;
+            }
+
+            insert(p) {
+                if (!this.boundary.contains(p)) return false;
+                if (this.points.length < this.capacity && !this.divided) {
+                    this.points.push(p);
+                    return true;
+                }
+                if (!this.divided) this.subdivide();
+                return (this.nw.insert(p) || this.ne.insert(p) || this.sw.insert(p) || this.se.insert(p));
+            }
+
+            query(range, found) {
+                if (!this.boundary.intersects(range)) return;
+                if (this.divided) {
+                    this.nw.query(range, found);
+                    this.ne.query(range, found);
+                    this.sw.query(range, found);
+                    this.se.query(range, found);
+                } else {
+                    for (let p of this.points) {
+                        if (range.contains(p)) found.push(p);
+                    }
+                }
+            }
+        }
+
+        // DRAW FUNCTION: Runs on every mouse move
+        function draw() {
+            // 1. Clear the main screen
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 2. Draw the STATIC 1M points from the buffer (Instant!)
+            ctx.drawImage(offscreenCanvas, 0, 0);
+
+            // 3. Setup the search area
+            const range = new Boundary(mouse.x, mouse.y, selectionRadius, selectionRadius);
+            
+            // 4. Draw selection box
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+            ctx.lineWidth = 1;
+            ctx.strokeRect(range.left, range.top, range.w * 2, range.h * 2);
+
+            if (!qt) return;
+
+            // 5. Query the QuadTree for only points near the mouse
+            const found = [];
+            qt.query(range, found);
+
+            // 6. Highlight those points in Green
+            ctx.fillStyle = "#00ff00";
+            for (let p of found) {
+                // Using fillRect is much faster than arc()
+                ctx.fillRect(p.x - 2, p.y - 2, 4, 4); 
+            }
+        }
+
+        // UPDATE FUNCTION: Runs only when points are added
+        function updateTree() {
+            // Re-sync offscreen canvas size
+            offscreenCanvas.width = canvas.width;
+            offscreenCanvas.height = canvas.height;
+
+            const bound = new Boundary(canvas.width / 2, canvas.height / 2, canvas.width / 2, canvas.height / 2);
+            qt = new Quadtree(bound, 16); // Capacity 16 is better for massive datasets
+
+            // Clear buffer and draw red points once
+            offCtx.fillStyle = '#ff0000';
+            
+            for (let p of points) {
+                qt.insert(p);
+                // Draw to the background buffer
+                offCtx.fillRect(p.x, p.y, 1, 1);
+            }
+            
+            stats.innerText = `Points: ${points.length.toLocaleString()}`;
+            draw();
+        }
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            if (points.length > 0) updateTree();
+        }
+
+        window.addEventListener('resize', resize);
+        canvas.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+            draw(); // Redraw selection instantly
+        });
+
+        document.getElementById("random_btn").addEventListener('click', () => {
+            stats.innerText = "Generating 1M points... please wait.";
+            // Brief timeout to allow UI to update text
+            setTimeout(() => {
+                for (let i = 0; i < 1000000; i++) {
+                    points.push(new Point(Math.random() * canvas.width, Math.random() * canvas.height));
+                }
+                updateTree();
+            }, 10);
+        });
+
+        document.getElementById("clear_btn").addEventListener('click', () => {
+            points = [];
+            qt = null;
+            offCtx.clearRect(0,0, offscreenCanvas.width, offscreenCanvas.height);
+            stats.innerText = "Points: 0";
+            draw();
+        });
+
+        resize();
+    </script>
+</body>
+</html>

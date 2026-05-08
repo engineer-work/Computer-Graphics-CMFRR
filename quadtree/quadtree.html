@@ -16,7 +16,8 @@
 
 
         <button id = "clear_btn">Clear</button>
-        <button id = "random_btn">Generate Random Points</button>
+        <button id = "random_btn">Generate 10000 Points</button>
+        <button id = "random_btn2">Generate 1000000 Points</button>
         
         <canvas id="canvas"></canvas>
 
@@ -491,10 +492,22 @@
 
             var clear_btn = document.getElementById("clear_btn");
             var random_btn = document.getElementById("random_btn");
+            var random_btn2 = document.getElementById("random_btn2");
+            
 
             
             random_btn.addEventListener('click',(e)=>{
               for(var i = 0; i < 10000; i++){
+                var x = Math.random() * c.width;
+                var y = Math.random() * c.height;
+                points.push({x:x, y:y});
+              }
+
+                updateTree();
+            });
+
+             random_btn2.addEventListener('click',(e)=>{
+              for(var i = 0; i < 1000000; i++){
                 var x = Math.random() * c.width;
                 var y = Math.random() * c.height;
                 points.push({x:x, y:y});

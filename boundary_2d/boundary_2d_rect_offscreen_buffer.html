@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Offscreen Buffer - 1M Points</title>
+    <style>
+        body, canvas { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #111; }
+        #ui { position: absolute; top: 10px; left: 10px; z-index: 10; }
+        button { padding: 8px 12px; cursor: pointer; }
+        #stats { color: white; font-family: monospace; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <button id="clear_btn">Clear</button>
+        <button id="random_btn">Generate 1,000,000 Points</button>
+        <div id="stats">Points: 0</div>
+    </div>
+    
+    <canvas id="canvas"></canvas>
+
+    <script>
+        // 1. Setup Main Canvas
+        const c = document.getElementById("canvas");
+        const c2d = c.getContext("2d");
+        const stats = document.getElementById("stats");
+
+        // 2. Setup Offscreen Buffer (The "Background" Layer)
+        const offscreen = document.createElement("canvas");
+        const offCtx = offscreen.getContext("2d");
+
+        const point = (x = 0, y = 0) => ({ x, y });
+
+        const boundary = (x = 0, y = 0, w = 0, h = 0) => ({
+            x, y, w, h,
+            left: x - w,
+            right: x + w,
+            top: y - h,
+            bottom: y + h,
+            contains: function(p) {
+                return (p.x >= this.left && p.x <= this.right &&
+                        p.y >= this.top && p.y <= this.bottom);
+            }
+        });
+
+        let points = [];
+        let mouse = { x: -1000, y: -1000 };
+        let radius = 50.0;
+
+        function updateBackground() {
+            // Match buffer size to window
+            offscreen.width = c.width;
+            offscreen.height = c.height;
+
+            // Draw all points to the buffer ONCE
+            offCtx.fillStyle = '#ff0000';
+            for (let p of points) {
+                // fillRect is 10x faster than arc() for small points
+                offCtx.fillRect(p.x, p.y, 1, 1); 
+            }
+            stats.innerText = `Points: ${points.length.toLocaleString()}`;
+        }
+
+        function draw() {
+            // A. Clear main screen
+            c2d.clearRect(0, 0, c.width, c.height);
+
+            // B. Draw the pre-rendered points (Instant even for 1M points)
+            c2d.drawImage(offscreen, 0, 0);
+
+            // C. Draw selection range
+            const range = boundary(mouse.x, mouse.y, radius, radius);
+            c2d.strokeStyle = 'rgb(255, 255, 255)';
+            c2d.strokeRect(range.left, range.top, range.w * 2, range.h * 2);
+
+            // D. Only loop through points to find those inside the box
+            // Note: Without a Quadtree, this loop takes ~10ms for 1M points.
+            // This is "fast enough" for 60fps, whereas DRAWING them was not.
+            c2d.fillStyle = '#00ff00';
+            for (let i = 0; i < points.length; i++) {
+                let p = points[i];
+                if (range.contains(p)) {
+                    c2d.fillRect(p.x - 2, p.y - 2, 4, 4);
+                }
+            }
+        }
+
+        function resize() {
+            c.width = window.innerWidth;
+            c.height = window.innerHeight;
+            updateBackground();
+            draw();
+        }
+
+        window.addEventListener('resize', resize);
+
+        c.addEventListener('mousemove', (e) => {
+            const rect = c.getBoundingClientRect();
+            mouse.x = e.clientX - rect.left;
+            mouse.y = e.clientY - rect.top;
+            draw(); // Redraw selection instantly
+        });
+
+        document.getElementById("random_btn").addEventListener('click', () => {
+            stats.innerText = "Generating points...";
+            // Use setTimeout to allow UI to update text before freezing briefly
+            setTimeout(() => {
+                for (let i = 0; i < 1000000; i++) {
+                    points.push(point(Math.random() * c.width, Math.random() * c.height));
+                }
+                updateBackground();
+                draw();
+            }, 10);
+        });
+
+        document.getElementById("clear_btn").addEventListener('click', () => {
+            points = [];
+            updateBackground();
+            draw();
+        });
+
+        resize();
+    </script>
+</body>
+</html>

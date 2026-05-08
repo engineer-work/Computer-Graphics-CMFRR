@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Raw Arc Loop - 1M Points</title>
+    <style>
+        body, canvas { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #111; }
+        #ui { position: absolute; top: 10px; left: 10px; z-index: 10; color: white; font-family: sans-serif; }
+        button { padding: 8px 12px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <button id="random_btn">Generate 1,000,000 Arcs</button>
+        <button id="clear_btn">Clear</button>
+        <div id="stats">Points: 0</div>
+    </div>
+    
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const c = document.getElementById("canvas");
+        const ctx = c.getContext("2d");
+        const stats = document.getElementById("stats");
+
+        // Offscreen canvas used ONLY as a static snapshot
+        const offscreen = document.createElement("canvas");
+        const offCtx = offscreen.getContext("2d");
+
+        let points = [];
+        let mouse = { x: -1000, y: -1000 };
+        const radius = 50;
+
+        function renderEveryArcIndividually() {
+            offscreen.width = c.width;
+            offscreen.height = c.height;
+
+            // This is the "Raw" way: No batching, just individual calls
+            for (let i = 0; i < points.length; i++) {
+                let p = points[i];
+                offCtx.fillStyle = 'red';
+                offCtx.beginPath(); // Individual path start
+                offCtx.arc(p.x, p.y, 1, 0, Math.PI * 2); // Individual arc
+                offCtx.fill(); // Individual fill command
+            }
+            
+            stats.innerText = `Points: ${points.length.toLocaleString()} (Rendered Individually)`;
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, c.width, c.height);
+            
+            // Draw the result of the million individual arc calls
+            ctx.drawImage(offscreen, 0, 0);
+
+            // Selection Logic
+            ctx.strokeStyle = "white";
+            ctx.strokeRect(mouse.x - radius, mouse.y - radius, radius * 2, radius * 2);
+
+            // Highlight Logic (Also individual calls)
+            for (let p of points) {
+                if (p.x > mouse.x - radius && p.x < mouse.x + radius &&
+                    p.y > mouse.y - radius && p.y < mouse.y + radius) {
+                    ctx.fillStyle = "#00ff00";
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        function resize() {
+            c.width = window.innerWidth;
+            c.height = window.innerHeight;
+            if (points.length > 0) renderEveryArcIndividually();
+            draw();
+        }
+
+        window.addEventListener('resize', resize);
+        c.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+            draw();
+        });
+
+        document.getElementById("random_btn").addEventListener('click', () => {
+            stats.innerText = "Processing individual arcs... this may take a while.";
+            setTimeout(() => {
+                for (let i = 0; i < 1000000; i++) {
+                    points.push({x: Math.random() * c.width, y: Math.random() * c.height});
+                }
+                renderEveryArcIndividually();
+                draw();
+            }, 50);
+        });
+
+        document.getElementById("clear_btn").addEventListener('click', () => {
+            points = [];
+            offCtx.clearRect(0,0,offscreen.width, offscreen.height);
+            draw();
+        });
+
+        resize();
+    </script>
+</body>
+</html>

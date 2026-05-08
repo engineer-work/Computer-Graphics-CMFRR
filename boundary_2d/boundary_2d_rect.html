@@ -1,0 +1,271 @@
+<html>
+    <title>2D Boundary</title>
+    <style>
+        body, canvas {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+
+        } 
+
+       
+        
+          </style>
+
+    <body>
+
+
+        <button id = "clear_btn">Clear</button>
+        <button id = "random_btn">Generate Random Points</button>
+        
+        <canvas id="canvas"></canvas>
+
+        <script>
+
+            var point =(x=0, y=0) => ({x,y});
+
+            var boundary = (x=0, y=0, w=0,h=0) =>(
+            { x, 
+              y,
+              w, // half width
+              h, // half height
+             isNorthEast:function(pickPoint){
+                var northEastX =  pickPoint.x >= this.northEast().x;
+                var northEastY =  pickPoint.y >= this.northEast().y;
+                return northEastX && northEastY;
+             }, 
+             isSouthWest:function(pickPoint){
+                var southWestX = pickPoint.x <= this.southWest().x;
+                var southWeshY = pickPoint.y <= this.southWest().y;
+                return southWestX && southWeshY;
+             },
+  
+             northEast:function(){return point(this.x-this.w, this.y-this.h)},
+             southWest:function(){return point(this.x+this.w, this.y+this.h)},
+
+             is_inner_bound_northeast_greater_than_outer_bound_southwest:function(inner_bound){
+
+                /*
+                boundary2 is inner_bound
+                boundary1 is outer_bound , using as 'this'
+
+                step1 = boundary2.x - boundary2.w > boundary1.x + boundary1.w
+                      = boundary2_NorthEastX > boundary1_SouthWestX  // Checking X value of northEast Mouse Curse Selection boundary greater than southwest region of X value of Canvas boundary 
+                step3 = boundary2.y - boundary2.h > boundary1.y + boundary1.h
+                      = boundary2_NorthEastY > boundary1_SouthWestY  // Checking Y value of northEast Mouse Curse Selection boundary greater than southwest region of Y value of Canvas boundary
+                */      
+                
+                var step1 = inner_bound.northEast().x > this.southWest().x;
+                var step3 = inner_bound.northEast().y > this.southWest().y;
+           
+                return step1 || step3;
+             },
+
+             is_inner_bound_southwest_lesser_than_outer_bound_northeast:function(inner_bound){
+
+                /*
+                boundary2 is inner_bound
+                boundary1 is outer_bound , using as 'this'
+
+                step2 = boundary2.x + boundary2.w < boundary1.x - boundary1.w
+                      = boundary2_SouthWestX  < boundary1_NorthEastX // Checking X value of southWest Mouse Curse Selection boundary lesser than northEast region of X value of Canvas boundary
+                step4 = boundary2.y + boundary2.h < boundary1.y - boundary1.h      
+                      = boundary2_SouthWestY < boundary2_NorthEastY  // Checking Y value of southWest Mouse Curse Selection boundary lesser than northEast region of Y value of Canvas boundary
+
+                */      
+                
+                var step2 = inner_bound.southWest().x < this.northEast().x;
+                var step4 = inner_bound.southWest().y < this.northEast().y;
+           
+                return step2 || step4;
+             },
+
+             
+            
+            /*
+
+              NorthEast-------North-------NorthWest  
+                  |                            |   
+                  |                            | 
+                 East                         West
+                  |                            |
+                  |                            |                         
+              SouthEast-------South-------SouthWest    
+                   
+                full width and height = 50
+                half width and height = 50/2 = 25
+                
+                this is boundary range (x = 0, y = 0, w = 25, h = 25)
+                point trying to calculate is x = 10, y = 5
+
+                northEastX = leftTopX = x - w = 0 - 25 = -25
+                northEastY = leftTopY = y - h = 0 - 25 = -25
+                southWestX = rightBottomX = x + w  = 0 + 25 = 25
+                southWestY = rightBottomY = y + w  = 0 + 25 = 25
+
+                case 1 : 
+                
+                point.x = 10, point.y = 5
+
+                step1 = 10 >= 0 - 25 = 10 >= -25 = true
+                step2 = 10 <= 0 + 25 = 10 <= -25 = true
+                step3 = 5 >= 0 - 25 = 5 >= -25 = true
+                step4 = 5 <= 0 + 25 = 5 <= -25 = true
+                output = step1 && step2 && step3 && step4;
+                output = true && true && true && true
+                output = true
+
+                */
+
+
+             contains:function(picKPoint){
+                var is_contain_between_northeast_and_southwest = this.isNorthEast(picKPoint) && this.isSouthWest(picKPoint);
+                return is_contain_between_northeast_and_southwest;
+             },
+
+
+             /*             
+            Boundary 1 - Canvas Region   
+            NorthEast--------------------North--------------------NorthWest  
+                  |                                                   |   
+                  |                                                   |                      
+                  |            Boundary 2 - Mouse Cursor Region       |                      
+                  |            NorthEast-----North-----NorthWest      |              
+                  |               |                        |          |                  
+                  |               |                        |          | 
+                 East           East                      West       West
+                  |               |                        |          |
+                  |               |                        |          |   
+                  |            SouthEast----South------SouthWest      |
+                  |                                                   |
+                  |                                                   |                          
+                  |                                                   |                         
+              SouthEast--------------------South------------------SouthWest        
+
+
+             checking 2 different boundary is intersecting or not.
+             
+             Boundary 1 = Canvas Region = full width and height = 50
+                                          half width and height = 50/2 = 25
+
+             Boundary 2 = Mouse Cursor Selection Region = full width and height = 10
+                                                          half width and height = 10/2 = 5                             
+
+             boundary 1 = (x = 0, y = 0, w = 25, h = 25) // we use for full canvas region // Outer Boundary 
+             boundary 2 = (x = 0, y = 0, w = 5, h = 5)   // we use for mouse movement, with radius region // Inner Boundary
+
+             boundary2_NorthEastX = boundary2.x - boundary2.w
+             boundary2_NorthEastY = boundary2.y - boundary2.h
+             boundary2_SouthWestX = boundary2.x + boundary2.w
+             boundary2_SouthWestY = boundary2.y + boundary2.h
+             
+             boundary1_NorthEastX = boundary1.x - boundary1.w
+             boundary1_NorthEastY = boundary1.y - boundary1.h
+             boundary1_SouthWestX = boundary1.x + boundary1.w
+             boundary1_SouthWestY = boundary1.y + boundary1.h
+             
+             ------Assign-----
+             
+             step1 = boundary2.x - boundary2.w > boundary1.x + boundary1.w
+                   = boundary2_NorthEastX > boundary1_SouthWestX  // Checking X value of northEast Mouse Curse Selection boundary greater than southwest region of X value of Canvas boundary 
+             step2 = boundary2.x + boundary2.w < boundary1.x - boundary1.w
+                   = boundary2_SouthWestX  < boundary1_NorthEastX // Checking X value of southWest Mouse Curse Selection boundary lesser than northEast region of X value of Canvas boundary
+             step3 = boundary2.y - boundary2.h > boundary1.y + boundary1.h
+                   = boundary2_NorthEastY > boundary1_SouthWestY  // Checking Y value of northEast Mouse Curse Selection boundary greater than southwest region of Y value of Canvas boundary
+             step4 = boundary2.y + boundary2.h < boundary1.y - boundary1.h      
+                   = boundary2_SouthWestY < boundary2_NorthEastY  // Checking Y value of southWest Mouse Curse Selection boundary lesser than northEast region of Y value of Canvas boundary
+
+             ------------------
+
+             step1 = boundary2.x - boundary2.w > boundary1.x + boundary1.w = 0 - 5 > 0 + 25 = -5 >  25 = false
+             step2 = boundary2.x + boundary2.w < boundary1.x - boundary1.w = 0 + 5 < 0 - 25 =  5 < -25 = false 
+             step3 = boundary2.y - boundary2.h > boundary1.y + boundary1.h = 0 - 5 > 0 + 25 = -5 >  25 = false
+             step4 = boundary2.y + boundary2.h < boundary1.y - boundary1.h = 0 + 5 < 0 - 25 =  5 < -25 = false
+             
+             output = !(step1 || step2 || step3 || step4)
+             output = !(false || false || false || false)
+             output = true
+
+             */
+             intersects:function(inner_bound){
+                 return !(this.is_inner_bound_northeast_greater_than_outer_bound_southwest(inner_bound)|| this.is_inner_bound_southwest_lesser_than_outer_bound_northeast(inner_bound));
+             }
+                
+        });
+            
+
+
+            var c = document.getElementById("canvas");
+            var c2d = c.getContext("2d");
+            var radius = 50.0;
+            var mouse = {x:-1000, y:-1000};
+            var points = [];
+
+            // var range = boundary(0, 0, 25, 25);
+            // var myPoint = point(50, 5);
+
+            // console.log(range.contains(myPoint)); // Output: true
+
+
+            function draw() {
+    c2d.clearRect(0, 0, c.width, c.height);
+    
+    var range = boundary(mouse.x, mouse.y, radius, radius);
+    
+    // Draw the selection boundary
+    c2d.strokeStyle = 'rgb(255, 0, 0)';
+    c2d.strokeRect(range.x - range.w, range.y - range.h, range.w * 2, range.h * 2);
+
+    for (let p of points) {
+        if (range.contains(p)) {
+            // Highlighted point - Green Square
+            c2d.fillStyle = '#00ff00';
+            // Offset by half the size (4) to center the square on the coordinate
+            c2d.fillRect(p.x - 4, p.y - 4, 8, 8); 
+        } else {
+            // Standard point - Red Square
+            c2d.fillStyle = '#ff0000';
+            // Offset by half the size (1) to center the square
+            c2d.fillRect(p.x - 1, p.y - 1, 2, 2);
+        }
+    }
+}
+
+            function resize(){
+                c.width =  window.innerWidth;
+                c.height = window.innerHeight;
+            }
+
+            window.addEventListener('resize', resize);
+
+            c.addEventListener('mousemove',(e)=>{
+                var rect = c.getBoundingClientRect();
+                mouse.x = e.clientX - rect.left;
+                mouse.y = e.clientY - rect.top;
+                draw();
+            });
+
+            var clear_btn = document.getElementById("clear_btn");
+            var random_btn = document.getElementById("random_btn");
+
+            
+            random_btn.addEventListener('click',(e)=>{
+              for(var i = 0; i < 10000; i++){
+                var x = Math.random() * c.width;
+                var y = Math.random() * c.height;
+                points.push({x:x, y:y});
+              }
+
+                draw();
+            });
+
+            clear_btn.addEventListener('click',(e)=>{
+                points = [];
+                draw(); 
+            });
+              resize();
+             
+        </script>
+
+    </body>
+</html>
