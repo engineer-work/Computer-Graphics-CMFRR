@@ -260,6 +260,13 @@
                 draw();
             });
 
+            c.addEventListener('mousedown',(e)=>{
+                var rect = c.getBoundingClientRect();
+                var p = point(e.clientX - rect.left, e.clientY - rect.top);
+                points.push(p);
+                draw();
+            });
+
             var clear_btn = document.getElementById("clear_btn");
             var random_btn = document.getElementById("random_btn");
 
@@ -278,6 +285,8 @@
                 points = [];
                 draw(); 
             });
+
+
               resize();
              
         </script>
