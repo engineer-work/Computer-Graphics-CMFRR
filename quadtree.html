@@ -1,5 +1,5 @@
 <html>
-    <title>2D Boundary</title>
+    <title>2D Boundary - QuadTree</title>
     <style>
         body, canvas {
             margin: 0;
@@ -29,53 +29,34 @@
               y,
               w, // half width
               h, // half height
-             isNorthEast:function(pickPoint){
-                var northEastX =  pickPoint.x >= this.northEast().x;
-                var northEastY =  pickPoint.y >= this.northEast().y;
-                return northEastX && northEastY;
+             isNorthWest:function(pickPoint){
+                var northWestX =  pickPoint.x >= this.northWest().x;
+                var northWestY =  pickPoint.y >= this.northWest().y;
+                return northWestX && northWestY;
              }, 
-             isSouthWest:function(pickPoint){
-                var southWestX = pickPoint.x <= this.southWest().x;
-                var southWeshY = pickPoint.y <= this.southWest().y;
-                return southWestX && southWeshY;
+             isSouthEast:function(pickPoint){
+                var southEastX = pickPoint.x <= this.southEast().x;
+                var southEastY = pickPoint.y <= this.southEast().y;
+                return southEastX && southEastY;
              },
   
-             northEast:function(){return point(this.x-this.w, this.y-this.h)},
-             southWest:function(){return point(this.x+this.w, this.y+this.h)},
+             northWest:function(){return point(this.x-this.w, this.y-this.h)},
+             southEast:function(){return point(this.x+this.w, this.y+this.h)},
 
-             is_inner_bound_northeast_greater_than_outer_bound_southwest:function(inner_bound){
+             is_inner_bound_northwest_greater_than_outer_bound_southeast:function(inner_bound){
 
-                /*
-                boundary2 is inner_bound
-                boundary1 is outer_bound , using as 'this'
-
-                step1 = boundary2.x - boundary2.w > boundary1.x + boundary1.w
-                      = boundary2_NorthEastX > boundary1_SouthWestX  // Checking X value of northEast Mouse Curse Selection boundary greater than southwest region of X value of Canvas boundary 
-                step3 = boundary2.y - boundary2.h > boundary1.y + boundary1.h
-                      = boundary2_NorthEastY > boundary1_SouthWestY  // Checking Y value of northEast Mouse Curse Selection boundary greater than southwest region of Y value of Canvas boundary
-                */      
                 
-                var step1 = inner_bound.northEast().x > this.southWest().x;
-                var step3 = inner_bound.northEast().y > this.southWest().y;
+                var step1 = inner_bound.northWest().x > this.southEast().x;
+                var step3 = inner_bound.northWest().y > this.southEast().y;
            
                 return step1 || step3;
              },
 
-             is_inner_bound_southwest_lesser_than_outer_bound_northeast:function(inner_bound){
+             is_inner_bound_southeast_lesser_than_outer_bound_northwest:function(inner_bound){
 
-                /*
-                boundary2 is inner_bound
-                boundary1 is outer_bound , using as 'this'
-
-                step2 = boundary2.x + boundary2.w < boundary1.x - boundary1.w
-                      = boundary2_SouthWestX  < boundary1_NorthEastX // Checking X value of southWest Mouse Curse Selection boundary lesser than northEast region of X value of Canvas boundary
-                step4 = boundary2.y + boundary2.h < boundary1.y - boundary1.h      
-                      = boundary2_SouthWestY < boundary2_NorthEastY  // Checking Y value of southWest Mouse Curse Selection boundary lesser than northEast region of Y value of Canvas boundary
-
-                */      
-                
-                var step2 = inner_bound.southWest().x < this.northEast().x;
-                var step4 = inner_bound.southWest().y < this.northEast().y;
+             
+                var step2 = inner_bound.southEast().x < this.northWest().x;
+                var step4 = inner_bound.southEast().y < this.northWest().y;
            
                 return step2 || step4;
              },
@@ -84,13 +65,15 @@
             
             /*
 
-              NorthEast-------North-------NorthWest  
+             (x-w, y-h)                  (x+w,y-h)    
+              NorthWest-------North-------NorthEast  
                   |                            |   
                   |                            | 
-                 East                         West
+                 West                         East
                   |                            |
                   |                            |                         
-              SouthEast-------South-------SouthWest    
+              SouthWest-------South-------SouthEast 
+              (x-w, y+h)                  (x+w,y+h)     
                    
                 full width and height = 50
                 half width and height = 50/2 = 25
@@ -98,10 +81,10 @@
                 this is boundary range (x = 0, y = 0, w = 25, h = 25)
                 point trying to calculate is x = 10, y = 5
 
-                northEastX = leftTopX = x - w = 0 - 25 = -25
-                northEastY = leftTopY = y - h = 0 - 25 = -25
-                southWestX = rightBottomX = x + w  = 0 + 25 = 25
-                southWestY = rightBottomY = y + w  = 0 + 25 = 25
+                northWestX = leftTopX = x - w = 0 - 25 = -25
+                northWestY = leftTopY = y - h = 0 - 25 = -25
+                southEastX = rightBottomX = x + w  = 0 + 25 = 25
+                southEastY = rightBottomY = y + w  = 0 + 25 = 25
 
                 case 1 : 
                 
@@ -119,28 +102,28 @@
 
 
              contains:function(picKPoint){
-                var is_contain_between_northeast_and_southwest = this.isNorthEast(picKPoint) && this.isSouthWest(picKPoint);
-                return is_contain_between_northeast_and_southwest;
+                var is_contain_between_northWest_and_southEast = this.isNorthWest(picKPoint) && this.isSouthEast(picKPoint);
+                return is_contain_between_northWest_and_southEast;
              },
 
 
              /*             
             Boundary 1 - Canvas Region   
-            NorthEast--------------------North--------------------NorthWest  
+            NorthWest--------------------North--------------------NorthEast 
                   |                                                   |   
                   |                                                   |                      
                   |            Boundary 2 - Mouse Cursor Region       |                      
-                  |            NorthEast-----North-----NorthWest      |              
+                  |            NorthWest-----North-----NorthEast      |              
                   |               |                        |          |                  
                   |               |                        |          | 
-                 East           East                      West       West
+                 West           West                      East       East
                   |               |                        |          |
                   |               |                        |          |   
-                  |            SouthEast----South------SouthWest      |
+                  |            SouthWest----South------SouthEast      |
                   |                                                   |
                   |                                                   |                          
                   |                                                   |                         
-              SouthEast--------------------South------------------SouthWest        
+              SouthWest--------------------South------------------SouthEast        
 
 
              checking 2 different boundary is intersecting or not.
@@ -154,26 +137,26 @@
              boundary 1 = (x = 0, y = 0, w = 25, h = 25) // we use for full canvas region // Outer Boundary 
              boundary 2 = (x = 0, y = 0, w = 5, h = 5)   // we use for mouse movement, with radius region // Inner Boundary
 
-             boundary2_NorthEastX = boundary2.x - boundary2.w
-             boundary2_NorthEastY = boundary2.y - boundary2.h
-             boundary2_SouthWestX = boundary2.x + boundary2.w
-             boundary2_SouthWestY = boundary2.y + boundary2.h
+             boundary2_NorthWestX = boundary2.x - boundary2.w
+             boundary2_NorthWestY = boundary2.y - boundary2.h
+             boundary2_SouthEastX = boundary2.x + boundary2.w
+             boundary2_SouthEastY = boundary2.y + boundary2.h
              
-             boundary1_NorthEastX = boundary1.x - boundary1.w
-             boundary1_NorthEastY = boundary1.y - boundary1.h
-             boundary1_SouthWestX = boundary1.x + boundary1.w
-             boundary1_SouthWestY = boundary1.y + boundary1.h
+             boundary1_NorthWestX = boundary1.x - boundary1.w
+             boundary1_NorthWestY = boundary1.y - boundary1.h
+             boundary1_SouthEastX = boundary1.x + boundary1.w
+             boundary1_SouthEastY = boundary1.y + boundary1.h
              
              ------Assign-----
              
              step1 = boundary2.x - boundary2.w > boundary1.x + boundary1.w
-                   = boundary2_NorthEastX > boundary1_SouthWestX  // Checking X value of northEast Mouse Curse Selection boundary greater than southwest region of X value of Canvas boundary 
+                   = boundary2_NorthWestX > boundary1_SouthEastX  // Checking X value of northWest Mouse Curse Selection boundary greater than SouthEast region of X value of Canvas boundary 
              step2 = boundary2.x + boundary2.w < boundary1.x - boundary1.w
-                   = boundary2_SouthWestX  < boundary1_NorthEastX // Checking X value of southWest Mouse Curse Selection boundary lesser than northEast region of X value of Canvas boundary
+                   = boundary2_SouthEastX  < boundary1_NorthWestX // Checking X value of SouthEast Mouse Curse Selection boundary lesser than northWest region of X value of Canvas boundary
              step3 = boundary2.y - boundary2.h > boundary1.y + boundary1.h
-                   = boundary2_NorthEastY > boundary1_SouthWestY  // Checking Y value of northEast Mouse Curse Selection boundary greater than southwest region of Y value of Canvas boundary
+                   = boundary2_NorthWestY > boundary1_SouthEastY  // Checking Y value of NorthWest Mouse Curse Selection boundary greater than SouthEast region of Y value of Canvas boundary
              step4 = boundary2.y + boundary2.h < boundary1.y - boundary1.h      
-                   = boundary2_SouthWestY < boundary2_NorthEastY  // Checking Y value of southWest Mouse Curse Selection boundary lesser than northEast region of Y value of Canvas boundary
+                   = boundary2_SouthEastY < boundary2_NorthWestY  // Checking Y value of SouthEast Mouse Curse Selection boundary lesser than NorthWest region of Y value of Canvas boundary
 
              ------------------
 
@@ -188,11 +171,228 @@
 
              */
              intersects:function(inner_bound){
-                 return !(this.is_inner_bound_northeast_greater_than_outer_bound_southwest(inner_bound)|| this.is_inner_bound_southwest_lesser_than_outer_bound_northeast(inner_bound));
+                 return !(this.is_inner_bound_northwest_greater_than_outer_bound_southeast(inner_bound)|| this.is_inner_bound_southeast_lesser_than_outer_bound_northwest(inner_bound));
              }
                 
         });
             
+
+
+        // var quadtree = (bound, capacity) =>(
+        // quadtree_points=[],
+        // divided=false,
+        // bounds=bound,
+        //     northwest=null,
+        //     northeast=null,
+        //     southwest=null,
+        //     southeast=null,
+        // {
+            
+           
+
+        //     subdivide : function(){
+        //        var x =this.bounds.x;
+        //        var y =this.bounds.y;
+        //        var w =this.bounds.w / 2;
+        //        var h =this.bounds.h / 2;
+               
+        //         /*
+        //       (x-w, y-h)                  (x+w,y-h)    
+        //       NorthWest-------North-------NorthEast  
+        //           |                            |   
+        //           |                            | 
+        //          West                         East
+        //           |                            |
+        //           |                            |                         
+        //       SouthWest-------South-------SouthEast 
+        //       (x-w, y+h)                  (x+w,y+h) 
+        //       */
+
+
+        //        this.northwest = quadtree(boundary(x-w, y-h, w, h),capacity);
+        //        this.northeast = quadtree(boundary(x+w, y-h, w, h),capacity);
+        //        this.southwest = quadtree(boundary(x-w, y+h, w, h),capacity);
+        //        this.southeast = quadtree(boundary(x+w, y+h, w, h),capacity);
+               
+               
+        //        this.divided = true;
+        //     },
+
+        //     insert:function(pickPoint){
+        //         console.log("food",this.quadtree_points);
+
+        //         // if boundary not contains any given points, it should move out from the insert method. and report as done as false.
+        //         if(!bound.contains(pickPoint)){
+        //            return false;
+        //         }
+
+        //         /*
+        //         // if, points less than the given capacity, should push to point list, and report as done as true.
+        //         // if, points great than the given capacity, want to do. recursive 
+        //                     1. check divided condition.
+        //                     2. check insert point condition on 4 direction of northwest, northeast, southwest, southeast and report as done as true.
+        //         */
+ 
+        //         if(this.quadtree_points.length < capacity){
+        //           this.quadtree_points.push(pickPoint);
+        //           return true;
+        //         }else{
+                  
+        //           if(!this.divided){
+        //            this.subdivide();
+        //           }
+
+        //           if(this.northwest.insert(pickPoint)) return true;
+        //           if(this.northeast.insert(pickPoint)) return true;
+        //           if(this.southwest.insert(pickPoint)) return true;
+        //           if(this.southeast.insert(pickPoint)) return true;
+                  
+
+
+        //         }
+                
+                
+
+        //     },
+
+
+        //     show:function(c2d){
+        //         c2d.strokeStyle = '#0000ff';
+        //         c2d.lineWidth = 1;
+        //         c2d.strokeRect(this.bounds.x - this.bounds.w,this.bounds.y -this.bounds.h,this.bounds.w*2,this.bounds.h*2);
+             
+        //         if(this.divided){
+        //             this.northwest.show(c2d);
+        //             this.northeast.show(c2d);
+        //             this.southwest.show(c2d);
+        //             this.southeast.show(c2d);
+                    
+        //         }
+        //     }
+        // });
+
+
+
+        class Quadtree {
+            constructor(boundd, capacity) {
+                this.boundary = boundd;
+                this.capacity = capacity;
+                this.points = [];
+                this.divided = false;
+            }
+
+            subdivide() {
+                let x = this.boundary.x;
+                let y = this.boundary.y;
+                let w = this.boundary.w / 2;
+                let h = this.boundary.h / 2;
+
+                  /*
+              (x-w, y-h)                  (x+w,y-h)    
+              NorthWest-------North-------NorthEast  
+                  |                            |   
+                  |                            | 
+                 West                         East
+                  |                            |
+                  |                            |                         
+              SouthWest-------South-------SouthEast 
+              (x-w, y+h)                  (x+w,y+h) 
+              */
+
+
+
+                this.northwest = new Quadtree(boundary(x - w, y - h, w, h), this.capacity);
+                this.northeast = new Quadtree(boundary(x + w, y - h, w, h), this.capacity);
+                this.southwest = new Quadtree(boundary(x - w, y + h, w, h), this.capacity);
+                this.southeast = new Quadtree(boundary(x + w, y + h, w, h), this.capacity);
+
+                this.divided = true;
+            }
+
+            insert(point) {
+
+                  
+                // if boundary not contains any given points, it should move out from the insert method. and report as done as false.
+
+                if (!this.boundary.contains(point)) {
+                    return false;
+                }
+
+              
+
+/*
+                // if, points less than the given capacity, should push to point list, and report as done as true.
+                // if, points great than the given capacity, want to do. recursive 
+                            1. check divided condition.
+                            2. check insert point condition on 4 direction of northwest, northeast, southwest, southeast and report as done as true.
+                */
+
+                if (this.points.length < this.capacity) {
+                    this.points.push(point);
+                    return true;
+                } else {
+                    if (!this.divided) {
+                        this.subdivide();
+                    }
+
+                    if (this.northwest.insert(point)) return true;
+                    if (this.northeast.insert(point)) return true;
+                    if (this.southwest.insert(point)) return true;
+                    if (this.southeast.insert(point)) return true;
+                }
+            }
+
+           
+
+             query(range, found = []) {
+                if (!this.boundary.intersects(range)) {
+                    return found;
+                } else {
+                    for (var p of this.points) {
+                        if (range.contains(p)) {
+                            found.push(p);
+                        }
+                    }
+                    if (this.divided) {
+                        this.northwest.query(range, found);
+                        this.northeast.query(range, found);
+                        this.southwest.query(range, found);
+                        this.southeast.query(range, found);
+                    }
+                }
+                return found;
+            }
+
+            show(ctx) {
+                ctx.strokeStyle = '#0000ff';
+                ctx.lineWidth = 1;
+                // quadtree boundary
+                ctx.strokeRect(
+                    this.boundary.x - this.boundary.w,
+                    this.boundary.y - this.boundary.h,
+                    this.boundary.w * 2,
+                    this.boundary.h * 2
+                );
+
+                // If divided, show subdivisions, points will be drawn on top
+                if (this.divided) {
+                    this.northwest.show(ctx);
+                    this.northeast.show(ctx);
+                    this.southwest.show(ctx);
+                    this.southeast.show(ctx);
+                }
+
+                // Draw points, if mouse clicked here, they will be highlighted in the query function
+                for (let p of this.points) {
+                    ctx.fillStyle = '#ff0000';
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+             
+            }
+        }
 
 
             var c = document.getElementById("canvas");
@@ -200,6 +400,7 @@
             var radius = 50.0;
             var mouse = {x:-1000, y:-1000};
             var points = [];
+            var qt; // for quadtree
 
             // var range = boundary(0, 0, 25, 25);
             // var myPoint = point(50, 5);
@@ -209,6 +410,10 @@
             function draw(){
 
             c2d.clearRect(0, 0, c.width, c.height);
+
+            if(qt!==undefined){
+            qt.show(c2d);            
+            }
             //var range = {x:mouse.x, y:mouse.y, w:radius, h:radius};            
             var range = boundary(mouse.x, mouse.y, radius, radius);
             c2d.strokeStyle = 'rgb(255, 0, 0)';
@@ -218,33 +423,50 @@
 
         
 
-            for (let p of points) {
-                if (range.contains(p)) {
-                                    console.log(p);
+            // for (let p of points) {
+            //     if (range.contains(p)) {
+            //                         console.log(p);
 
-                            c2d.fillStyle = '#00ff00';
-                            c2d.beginPath();
-                            c2d.arc(p.x, p.y, 4, 0, Math.PI * 2);
-                            c2d.fill();
-                        }else{
-                            c2d.fillStyle = '#ff0000';
-                            c2d.beginPath();
-                            c2d.arc(p.x, p.y, 2, 0, Math.PI * 2);
-                            c2d.fill();
-                        }
+            //                 c2d.fillStyle = '#00ff00';
+            //                 c2d.beginPath();
+            //                 c2d.arc(p.x, p.y, 4, 0, Math.PI * 2);
+            //                 c2d.fill();
+            //             }else{
+            //                 c2d.fillStyle = '#ff0000';
+            //                 c2d.beginPath();
+            //                 c2d.arc(p.x, p.y, 2, 0, Math.PI * 2);
+            //                 c2d.fill();
+            //             }
 
               
-            }
+            // }
 
-           
+                        if(qt!==undefined){
 
-            // for (let p of founds) {
-            //         ctx.fillStyle = '#00ff00';
-            //         ctx.beginPath();
-            //         ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
-            //         ctx.fill();
-            //     }        
+
+            var found = qt.query(range);
+
+        
+            for (let p of found) {
+                    c2d.fillStyle = '#00ff00';
+                    c2d.beginPath();
+                    c2d.arc(p.x, p.y, 6, 0, Math.PI * 2);
+                    c2d.fill();
+                }       } 
 }
+
+    function updateTree(){
+        var bound = boundary(c.width/2,c.height/2,c.width/2,c.height/2);
+        qt = new Quadtree(bound,4);
+        for(var p of points){
+            qt.insert(p);
+        }
+
+        draw();
+    }
+
+
+
 
             function resize(){
                 c.width =  window.innerWidth;
@@ -264,7 +486,7 @@
                 var rect = c.getBoundingClientRect();
                 var p = point(e.clientX - rect.left, e.clientY - rect.top);
                 points.push(p);
-                draw();
+                updateTree();
             });
 
             var clear_btn = document.getElementById("clear_btn");
@@ -278,12 +500,12 @@
                 points.push({x:x, y:y});
               }
 
-                draw();
+                updateTree();
             });
 
             clear_btn.addEventListener('click',(e)=>{
                 points = [];
-                draw(); 
+                updateTree();
             });
 
 
