@@ -6,3 +6,4 @@
 # Space partitioning
 
 1. [QuadTree](/quadtree/quadtree.html), [QuadTree - Arc as Pixel](/quadtree/quadtree1b.html), [QuadTree - Rect as Pixel](/quadtree/quadtree1a.html)
+
